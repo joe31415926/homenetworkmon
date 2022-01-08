@@ -1,3 +1,4 @@
+#!/bin/bash
 while [ ! -f /home/pi/ramdisk/ip ]
 do
 sleep 1

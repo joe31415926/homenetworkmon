@@ -1,3 +1,4 @@
+#!/bin/bash
 while :
 do
 /usr/bin/curl -o /home/pi/ramdisk/ip_tmp http://joeruff.com/ip

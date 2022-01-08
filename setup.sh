@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 mkdir -p /home/pi/.ssh
 cp -f /boot/personaljoeruff.pub /home/pi/.ssh/authorized_keys
 cp -f /boot/weaksecurity /home/pi/.ssh/
