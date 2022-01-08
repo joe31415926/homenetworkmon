@@ -5,7 +5,6 @@ cp -f /boot/weaksecurity /home/pi/.ssh/
 chown pi:pi /home/pi/.ssh/authorized_keys
 chown pi:pi /home/pi/.ssh/weaksecurity
 chown pi:pi /home/pi/.ssh
-cp /boot/wpa_supplicant.conf /etc/wpa_supplicant/
 mkdir -p /home/pi/ramdisk
 chown pi:pi /home/pi/ramdisk
 grep -q /home/pi/ramdisk /etc/fstab
