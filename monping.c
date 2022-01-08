@@ -1,15 +1,13 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <netdb.h>
+#include <unistd.h>     // fork(), sleep(), write(), close()
+#include <arpa/inet.h>  // IPPROTO_ICMP
 #include <assert.h>
-#include <pthread.h>
-#include <string.h>
-#include <poll.h>
-#include <sys/wait.h>
+#include <stdlib.h>     // aotl()
+#include <sys/socket.h> // socket()
+#include <fcntl.h>      // open()
+#include <time.h>       // time()
+#include <poll.h>       // poll()
+#include <sys/wait.h>   // wait()
 
 void child()
 {
@@ -20,84 +18,50 @@ void child()
         fclose(logfile);
     }
 
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(struct sockaddr_in));
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(7356);
-    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-
-
-    int sock = socket(PF_INET, SOCK_STREAM, 0);
-    assert(sock != -1);
-
-    assert(connect(sock, (struct sockaddr *) &addr, sizeof(addr)) == 0);
-    
     struct pollfd fds;
     fds.fd = socket(PF_INET, SOCK_RAW, IPPROTO_ICMP);
     assert(fds.fd != -1);
+    fds.events = POLLIN | POLLPRI;
     
-    struct {
-        uint32_t time;
-        uint32_t data;
-        uint32_t mask;
-    } message;
-    
-    int counts[4];
-
-    struct timespec clock_mon;
-    assert(clock_gettime(CLOCK_MONOTONIC_RAW, &clock_mon) == 0);
-    message.time = clock_mon.tv_sec;
-    memset(counts, 0, sizeof(counts));
-
     while (1)
     {
-        fds.events = POLLIN | POLLPRI;
-
-        int pollret = poll(&fds, 1, 250);
-        assert(pollret != -1);
-
-        assert(clock_gettime(CLOCK_MONOTONIC_RAW, &clock_mon) == 0);
-        uint32_t newtime = clock_mon.tv_sec;
-        if (newtime != message.time)
-        {
-            int i;
-            message.data = 1;
-            for (i = 0; i < 4; i++)
-            {
-                assert(counts[i] >= 0);
-                if (counts[i] > 3) counts[i] = 3;
-                
-                message.data <<= 2;
-                message.data |= counts[i];
-            }
-            message.mask = (0x1ff);  // 9bits: 1bit plus 4 x 2bits
-
-            message.data <<= 14;
-            message.mask <<= 14;
-
-            ssize_t bytessent = send(sock, &message, sizeof(message), 0);
-            assert(bytessent == sizeof(message));
-
-            message.time = newtime;
-            memset(counts, 0, sizeof(counts));
-        }  
-
-        if (pollret == 1)
-        {
-            assert(fds.revents == POLLIN);
+        assert ((poll(&fds, 1, -1) == 1) && (fds.revents == POLLIN));
+        
+        unsigned char res[100];
+        int ressponse = recv(fds.fd, res, sizeof(res), 0);
+        assert((ressponse > 0) && (ressponse < sizeof(res)));
+        
+        struct timespec receive_time;
+        assert(clock_gettime(CLOCK_REALTIME, &receive_time) == 0);
+        
+        char buffer[32];
+        int i;
+        for(i = 0; i < 10; i++)
+            sprintf(buffer + i * 2, "%02x", res[38 + i]);
             
-            unsigned char res[100];
-            int ressponse = recv(fds.fd, res, sizeof(res), 0);
-            assert(ressponse > 0);
-            
-            printf("%4d ", ressponse);
-            for(int i = 0; i < ressponse; i++)
-            printf("%02x %s", res[i], ((i + 1)  % 10 == 0) ? "," : "");
-            printf(" (%d)\n", res[64]);
-            
-            assert((res[64] >= 0) && (res[64] < 4));
-            counts[res[64]]++;
-        }
+        long message_nanoseconds = atol(buffer + 11);
+        buffer[11] = '\0';
+        long message_seconds = atol(buffer + 1);
+        buffer[1] = '\0';
+        long message_destination = atol(buffer + 0);
+        
+        long delta = (receive_time.tv_sec - message_seconds) * 1000 + (receive_time.tv_nsec - message_nanoseconds) / 1000000;
+        
+        int fd = open("/home/pi/ping.log", O_WRONLY | O_APPEND | O_CREAT, 0644);
+        assert(fd > 0);
+        
+        struct {
+            uint32_t timestamp;
+            uint16_t destination;
+            uint16_t durationms;
+        } record = {
+            receive_time.tv_sec,
+            message_destination,
+            delta
+        };
+        
+        assert(write(fd, &record, sizeof(record)) == sizeof(record));
+        close(fd);
     }
 }
 
@@ -107,7 +71,7 @@ void mommy()
     {
         if (!fork()) child();
         wait(NULL);
-        sleep(3);    // wait for a second so we don't spin super quickly
+        sleep(1);    // wait for a second so we don't spin super quickly
     }
 }
 
