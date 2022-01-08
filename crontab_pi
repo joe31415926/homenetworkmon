@@ -5,3 +5,4 @@
 @reboot /home/pi/homenetworkmon/cronping2.sh
 @reboot /home/pi/homenetworkmon/cronping3.sh
 @reboot /home/pi/homenetworkmon/cronping4.sh
+@reboot /home/pi/parseping
