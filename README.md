@@ -24,7 +24,7 @@ ssh -A pi@raspberrypi.local
 ### On the Raspberry Pi
 
 ```
-mkdir .ssh
+mkdir -p .ssh
 mv id_rsa.pub .ssh/authorized_keys
 sudo apt -y update
 sudo apt -y upgrade
