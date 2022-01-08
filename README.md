@@ -8,6 +8,9 @@
 diskUtil unmountDisk /dev/disk2
 sudo dd bs=2048000 if=Downloads/2021-10-30-raspios-bullseye-armhf-lite.img of=/dev/disk2                                     
 touch /Volumes/boot/ssh
+cp ~/.ssh/personaljoeruff.pub /Volumes/boot/
+cp ~/.ssh/weaksecurity /Volumes/boot/
+cp wpa_supplicant.conf /Volumes/boot/
 diskUtil unmountDisk /dev/disk2
 ```
 
@@ -16,16 +19,13 @@ diskUtil unmountDisk /dev/disk2
 remember the default password for the Raspberry Pi is `raspberry`
 
 ```
-scp ~/.ssh/id_rsa.pub pi@raspberrypi.local:
-ssh-add ~/.ssh/id_rsa
+ssh-add ~/.ssh/personaljoeruff.pem
 ssh -A pi@raspberrypi.local
 ```
 
 ### On the Raspberry Pi
 
 ```
-mkdir -p .ssh
-mv id_rsa.pub .ssh/authorized_keys
 sudo apt -y update
 sudo apt -y upgrade
 sudo apt -y install git gcc python3-pip
