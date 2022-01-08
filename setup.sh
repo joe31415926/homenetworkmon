@@ -2,6 +2,7 @@
 mkdir -p /home/pi/.ssh
 cp -f /boot/personaljoeruff.pub /home/pi/.ssh/authorized_keys
 cp -f /boot/weaksecurity /home/pi/.ssh/
+chmod 0400 /home/pi/.ssh/weaksecurity
 chown pi:pi /home/pi/.ssh/authorized_keys
 chown pi:pi /home/pi/.ssh/weaksecurity
 chown pi:pi /home/pi/.ssh
