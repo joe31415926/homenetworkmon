@@ -1,8 +1,8 @@
 # homenetworkmon
 
-***On the MacBook Pro
+### On the MacBook Pro
 
-****With the micro sd card in the MacBook Pro
+#### With the micro sd card in the MacBook Pro
 
 ```
 diskUtil unmountDisk /dev/disk2
@@ -11,7 +11,7 @@ touch /Volumes/boot/ssh
 diskUtil unmountDisk /dev/disk2
 ```
 
-****With the micro sd card in the Raspberry Pi
+#### With the micro sd card in the Raspberry Pi
 
 remember the default password for the Raspberry Pi is `raspberry`
 
@@ -21,7 +21,7 @@ ssh-add ~/.ssh/id_rsa
 ssh -A pi@raspberrypi.local
 ```
 
-***On the Raspberry Pi
+### On the Raspberry Pi
 
 ```
 mkdir .ssh
