@@ -28,7 +28,7 @@ ssh -A pi@raspberrypi.local
 ```
 sudo apt -y update
 sudo apt -y upgrade
-sudo apt -y install git gcc python3-pip
+sudo apt -y install git gcc python3-pip libopenjp2-7 libatlas-base-dev inotify-tools
 python3 -m pip install matplotlib
 git clone git@github.com:joe31415926/homenetworkmon.git
 sudo homenetworkmon/setup.sh

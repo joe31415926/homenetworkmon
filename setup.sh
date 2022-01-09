@@ -20,3 +20,4 @@ crontab -u root /home/pi/homenetworkmon/crontab_root
 crontab -u pi /home/pi/homenetworkmon/crontab_pi
 cp -pR /home/pi/homenetworkmon/configure /home/pi/
 /usr/bin/raspi-config nonint do_wifi_country US
+sudo timedatectl set-timezone US/Pacific
