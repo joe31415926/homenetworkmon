@@ -16,6 +16,8 @@ gcc -O3 -o /home/pi/monping /home/pi/homenetworkmon/monping.c
 chown pi:pi /home/pi/monping
 gcc -O3 -o /home/pi/parseping /home/pi/homenetworkmon/parseping.c
 chown pi:pi /home/pi/parseping
+gcc -O3 -o /home/pi/fillframebuffer /home/pi/homenetworkmon/fillframebuffer.c
+chown pi:pi /home/pi/fillframebuffer
 crontab -u root /home/pi/homenetworkmon/crontab_root
 crontab -u pi /home/pi/homenetworkmon/crontab_pi
 cp -pR /home/pi/homenetworkmon/configure /home/pi/

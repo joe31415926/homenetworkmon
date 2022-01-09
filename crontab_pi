@@ -10,4 +10,5 @@
 @reboot /home/pi/homenetworkmon/cronplot2.sh
 @reboot /home/pi/homenetworkmon/cronplot3.sh
 @reboot /home/pi/homenetworkmon/cronplot4.sh
+@reboot /home/pi/homenetworkmon/cronfillfb.sh
 @reboot /home/pi/parseping
