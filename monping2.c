@@ -8,7 +8,12 @@
 #include <time.h>       // time()
 #include <poll.h>       // poll()
 #include <sys/wait.h>   // wait()
-       #include <string.h>
+#include <string.h>
+
+
+volatile unsigned char idx[10];
+
+struct timespec t[10][256];
 
 void child()
 {
@@ -19,6 +24,10 @@ void child()
         fclose(logfile);
     }
 
+    int i;
+    for (i = 0; i < sizeof(idx)/sizeof(idx[0]); i++)
+        idx[i] = 0;
+        
     struct pollfd fds[2];
     
     fds[0].fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
@@ -53,10 +62,11 @@ void child()
             
             if ((res[9] == 1) && (res[20] == 0) && (res[21] == 0))
             {
-                struct timespec receive_time;
-                assert(clock_gettime(CLOCK_MONOTONIC_RAW, &receive_time) == 0);
-            
-                printf("icmp %09d.%09d %d\n", receive_time.tv_sec, receive_time.tv_nsec, res[36]);
+                i = res[36];
+                if ((i >= 0) && (i < sizeof(idx)/sizeof(idx[0])))
+                    assert(clock_gettime(CLOCK_MONOTONIC_RAW, &t[i][idx[i]++]) == 0);
+
+                printf("A %d\n", i);
             }
         }
         else
@@ -67,10 +77,11 @@ void child()
             int ressponse = recv(fds[1].fd, res, sizeof(res), 0);
             assert((ressponse > 0) && (ressponse < sizeof(res)));
 
-            struct timespec receive_time;
-            assert(clock_gettime(CLOCK_MONOTONIC_RAW, &receive_time) == 0);
-            
-            printf("udp %09d.%09d %d\n", receive_time.tv_sec, receive_time.tv_nsec, res[0] - '0');
+            i = res[0] - '0';
+            if ((i >= 0) && (i < sizeof(idx)/sizeof(idx[0])))
+                assert(clock_gettime(CLOCK_MONOTONIC_RAW, &t[i][idx[i]++]) == 0);
+                
+            printf("B %d\n", i);
         }
         else
             assert(fds[1].revents == 0);
