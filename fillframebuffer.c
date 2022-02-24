@@ -67,7 +67,7 @@ int main()
     
     struct fb_fix_screeninfo finfo;
     assert(ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == 0);
-    assert(finfo.smem_len == 1843200);
+    assert(finfo.smem_len == 1280 * 720 * 2);
     
     struct fb_var_screeninfo vinfo;
     assert(ioctl(fd, FBIOGET_VSCREENINFO, &vinfo) == 0);
