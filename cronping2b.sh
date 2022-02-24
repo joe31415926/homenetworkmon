@@ -1,6 +1,7 @@
 #!/bin/bash
 while :
 do
-ping -c 1 -w 10 -p "2`date +%s%N`" -I eth0 `cat /home/pi/configure/pingip1.txt`
+echo 2 | nc -n -u -w 1 127.0.0.1 8080
+ping -c 1 -w 10 -p 2 -I eth0 `cat /home/pi/configure/pingip1.txt`
 sleep 5
 done
