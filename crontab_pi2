@@ -1,0 +1,7 @@
+@reboot /home/pi/homenetworkmon/crongetip.sh
+@reboot /home/pi/homenetworkmon/cronautossh.sh
+@reboot /home/pi/homenetworkmon/cronping0b.sh
+@reboot /home/pi/homenetworkmon/cronping1b.sh
+@reboot /home/pi/homenetworkmon/cronping2b.sh
+@reboot /home/pi/homenetworkmon/cronping3b.sh
+@reboot /home/pi/homenetworkmon/cronping4b.sh
