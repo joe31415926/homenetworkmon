@@ -8,6 +8,7 @@
 #include <time.h>       // time()
 #include <poll.h>       // poll()
 #include <sys/wait.h>   // wait()
+       #include <string.h>
 
 void child()
 {
@@ -18,50 +19,61 @@ void child()
         fclose(logfile);
     }
 
-    struct pollfd fds;
-    fds.fd = socket(PF_INET, SOCK_RAW, IPPROTO_ICMP);
-    assert(fds.fd != -1);
-    fds.events = POLLIN | POLLPRI;
+    struct pollfd fds[2];
+    
+    fds[0].fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+    assert(fds[0].fd != -1);
+    fds[0].events = POLLIN | POLLPRI;
+    
+    fds[1].fd = socket(AF_INET, SOCK_DGRAM, 0);
+    assert(fds[1].fd != -1);
+    fds[1].events = POLLIN | POLLPRI;
+    
+    int yes = 1;
+    if (setsockopt(fds[1].fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) != 0)
+        return;
+    
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(struct sockaddr_in));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(8080);
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    
+    if (bind(fds[1].fd, (struct sockaddr *) &addr, sizeof(addr)) != 0)
+        return;
     
     while (1)
     {
-        assert ((poll(&fds, 1, -1) == 1) && (fds.revents == POLLIN));
+        assert(poll(fds, 2, -1) > 0);
         
-        unsigned char res[100];
-        int ressponse = recv(fds.fd, res, sizeof(res), 0);
-        assert((ressponse > 0) && (ressponse < sizeof(res)));
-        
-        struct timespec receive_time;
-        assert(clock_gettime(CLOCK_MONOTONIC_RAW, &receive_time) == 0);
-        
-        char buffer[32];
-        int i;
-        for(i = 0; i < 10; i++)
-            sprintf(buffer + i * 2, "%02x", res[38 + i]);
+        if (fds[0].revents == POLLIN) {
+            unsigned char res[300];
+            int ressponse = recv(fds[0].fd, res, sizeof(res), 0);
+            assert((ressponse > 0) && (ressponse < sizeof(res)));
             
-        long message_nanoseconds = atol(buffer + 11);
-        buffer[11] = '\0';
-        long message_seconds = atol(buffer + 1);
-        buffer[1] = '\0';
-        long message_destination = atol(buffer + 0);
+            if ((res[9] == 1) && (res[20] == 0) && (res[21] == 0))
+            {
+                struct timespec receive_time;
+                assert(clock_gettime(CLOCK_MONOTONIC_RAW, &receive_time) == 0);
+            
+                printf("icmp %09d.%09d %d\n", receive_time.tv_sec, receive_time.tv_nsec, res[36]);
+            }
+        }
+        else
+            assert(fds[0].revents == 0);
         
-        long delta = (receive_time.tv_sec - message_seconds) * 1000 + (receive_time.tv_nsec - message_nanoseconds) / 1000000;
-        
-        int fd = open("/home/pi/ping.log", O_WRONLY | O_APPEND | O_CREAT, 0644);
-        assert(fd > 0);
-        
-        struct {
-            uint32_t timestamp;
-            uint16_t destination;
-            uint16_t durationms;
-        } record = {
-            receive_time.tv_sec,
-            message_destination,
-            delta
-        };
-        
-        assert(write(fd, &record, sizeof(record)) == sizeof(record));
-        close(fd);
+        if (fds[1].revents == POLLIN) {
+            unsigned char res[300];
+            int ressponse = recv(fds[1].fd, res, sizeof(res), 0);
+            assert((ressponse > 0) && (ressponse < sizeof(res)));
+
+            struct timespec receive_time;
+            assert(clock_gettime(CLOCK_MONOTONIC_RAW, &receive_time) == 0);
+            
+            printf("udp %09d.%09d %d\n", receive_time.tv_sec, receive_time.tv_nsec, res[0] - '0');
+        }
+        else
+            assert(fds[1].revents == 0);
     }
 }
 
@@ -77,6 +89,8 @@ void mommy()
 
 int main()
 {
+    child();
+    return -1;
     if (!fork()) mommy();
     return 0;
 }
