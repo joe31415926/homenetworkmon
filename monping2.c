@@ -9,17 +9,79 @@
 #include <poll.h>       // poll()
 #include <sys/wait.h>   // wait()
 #include <string.h>
-       #include <pthread.h>
+#include <pthread.h>
 #include <linux/fb.h>
 #include <sys/mman.h>
-       #include <sys/ioctl.h>
-       #include <unistd.h>
-       #include <sys/types.h>
-       #include <sys/stat.h>
-       #include <unistd.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
+// ffmpeg -y -i congrats.jpg -vcodec rawvideo -f rawvideo -s 1280x720 -pix_fmt rgb565 out
+// ffmpeg -y -i digits.png -vcodec rawvideo -f rawvideo -pix_fmt rgb565 digits
 
-volatile unsigned char idx[10];
+#define NUM_ELEM (10)
+
+typedef struct {
+    int x;
+    int y;
+    int d;
+    int frame;
+    char buf[20];
+} ui_data_str;
+
+int lut[256];
+char *framebuffer;
+char *digits;
+char *flash;
+
+void update(ui_data_str *d, long t)
+{
+    int xoff = 0;
+    
+    if (d->d)
+    {
+        char buf[20];
+        sprintf(buf, "%4ld.%1ld", t / 1000 / 10, (t / 1000) % 10);
+        
+        int i;
+        for (i = 0; i < 6; i++)
+        {
+            if (buf[i] != d->buf[i])
+            {
+                int offset = lut[buf[i]];
+                assert(offset >= 0);
+                
+                int j;
+                for (j = 0; j < 48; j++)
+                    memcpy(framebuffer + 1280 * 2 * (j + d->y) + 2 * d->x + 32 * 2 * i, digits + 12 * 32 * 2 * j + 32 * 2 * offset, 32 * 2);
+            }
+        }
+    
+        memcpy(d->buf, buf, 20);
+        xoff += 2 * 6 * 32;
+    }
+    
+    if ((t >= 0) && (t < 720))
+    {
+        int frame = t / 30;
+        if (frame > 11)
+            frame = 23 - frame;
+        assert((frame >= 0) && (frame < 12));
+        if (frame != d->frame)
+        {
+            int j;
+            for (j = 0; j < 48; j++)
+                memcpy(framebuffer + 1280 * 2 * (j + d->y) + 2 * d->x + xoff, flash + 12 * 32 * 2 * j + 32 * 2 * frame, 32 * 2);
+            d->frame = frame;
+        }
+    }
+}
+
+ui_data_str ui[NUM_ELEM];
+
+volatile unsigned char idx[NUM_ELEM];
 
 struct timespec t[10][256];
 
@@ -38,21 +100,29 @@ void *start_routine(void *p)
     assert(vinfo.yres == 720);
     assert(vinfo.bits_per_pixel == 16);
     
-    char *framebuffer = (char *) mmap(0, finfo.smem_len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    framebuffer = (char *) mmap(0, finfo.smem_len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     assert(framebuffer != MAP_FAILED);
     close(fd);
     
     fd = open("/home/pi/homenetworkmon/digits", O_RDONLY);
     assert(fd > 0);
 
-    struct stat buf2;
-    assert((fstat(fd, &buf2) == 0) && (buf2.st_size == 11 * 32 * 48 * 2));
+    struct stat st;
+    assert((fstat(fd, &st) == 0) && (st.st_size == 12 * 32 * 48 * 2));
     
-    char *digits = (char *) mmap(0, buf2.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    digits = (char *) mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     assert(digits != MAP_FAILED);
     close(fd);
 
-    int lut[256];
+    fd = open("/home/pi/homenetworkmon/flash", O_RDONLY);
+    assert(fd > 0);
+
+    assert((fstat(fd, &st) == 0) && (st.st_size == 12 * 32 * 48 * 2));
+    
+    flash = (char *) mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    assert(flash != MAP_FAILED);
+    close(fd);
+
     int i;
     for (i = 0; i < 256; i++) lut[i] = -1;
     lut['0'] = 0;
@@ -66,41 +136,50 @@ void *start_routine(void *p)
     lut['8'] = 8;
     lut['9'] = 9;
     lut['.'] = 10;
-    lut[' '] = 0;
+    lut[' '] = 11;
     
-
+    struct {
+        int x;
+        int y;
+        int d;
+    } config[NUM_ELEM] = {
+        {0,   0, 0},
+        {0,  50, 0},
+        {0, 100, 0},
+        {0, 150, 0},
+        {0, 200, 0},
+        {500,   0, 1},
+        {500,  50, 1},
+        {500, 100, 1},
+        {500, 150, 1},
+        {500, 200, 1},
+    };
+    
+    for (i = 0; i < NUM_ELEM; i++)
+    {
+        ui[i].x = config[i].x;
+        ui[i].y = config[i].y;
+        ui[i].d = config[i].d;
+    }
     
     while (1)
     {
-        for (i = 0; i < sizeof(idx)/sizeof(idx[0]); i++)
+        for (i = 0; i < NUM_ELEM; i++)
         {
             unsigned char ii = idx[i] + 255;
             struct timespec now;
             assert(clock_gettime(CLOCK_MONOTONIC_RAW, &now) == 0);
             
-            long deltal = (now.tv_nsec - t[i][ii].tv_nsec) / 100000000L;
+            long deltal = (now.tv_nsec - t[i][ii].tv_nsec) / 100000L;
             long deltah = now.tv_sec - t[i][ii].tv_sec;
             assert(deltah >= 0);
             while (deltah)
             {
                 deltah--;
-                deltal += 10;
+                deltal += 10000;
             }            
             
-            char buf[20];
-            sprintf(buf, "%6ld", deltal);
-            
-            int d;
-            for (d = 0; d < 6; d++)
-            {
-                int offset = lut[buf[d]];
-                assert(offset >= 0);
-                
-                int j;
-                for (j = 0; j < 48; j++)
-                    memcpy(framebuffer + 1280 * 2 * (j + 50 * i) + 32 * 2 * d, digits + 11 * 32 * 2 * j + 32 * 2 * offset, 32 * 2);
-            }
-
+            update(ui + i, deltal);
         }
     }
 }
@@ -115,7 +194,7 @@ void child()
     }
 
     int i;
-    for (i = 0; i < sizeof(idx)/sizeof(idx[0]); i++)
+    for (i = 0; i < NUM_ELEM; i++)
         idx[i] = 0;
         
     pthread_t thread;
@@ -156,7 +235,7 @@ void child()
             if ((res[9] == 1) && (res[20] == 0) && (res[21] == 0))
             {
                 i = res[36] + 5;
-                if ((i >= 0) && (i < sizeof(idx)/sizeof(idx[0])))
+                if ((i >= 0) && (i < NUM_ELEM))
                 {
                     assert(clock_gettime(CLOCK_MONOTONIC_RAW, &t[i][idx[i]]) == 0);
                     idx[i]++;
@@ -172,7 +251,7 @@ void child()
             assert((ressponse > 0) && (ressponse < sizeof(res)));
 
             i = res[0] - '0';
-            if ((i >= 0) && (i < sizeof(idx)/sizeof(idx[0])))
+            if ((i >= 0) && (i < NUM_ELEM))
             {
                 assert(clock_gettime(CLOCK_MONOTONIC_RAW, &t[i][idx[i]]) == 0);
                 idx[i]++;
