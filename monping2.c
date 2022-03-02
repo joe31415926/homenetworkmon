@@ -67,6 +67,7 @@ char *flash;
 
 void update(ui_data_str *d, long t)
 {
+
     int frame = t / FLASH_TIME_PER_FRAME;
     if ((frame >= 0) && (frame < 2 * NUM_FLASH_FRAMES))        // As t increases, frame should first go 0 -> 11 and then go 11 -> 0.
     {
@@ -81,6 +82,8 @@ void update(ui_data_str *d, long t)
             d->frame = frame;
         }
     }
+
+    int x_offset_bytes = FLASH_IMAGE_WIDTH_BYTES;
 
     if (d->d)
     {
@@ -105,26 +108,26 @@ void update(ui_data_str *d, long t)
 
                 if (stretch == 0)
                 {
-                    int digitcolor = 1;
-                    if (i == 2) digitcolor = 2;
-                    if (i < 2) digitcolor = 0;
-                    stretch += digitcolor * 32;
+                    int digitcolor = 0;
+                    if (i == 2) digitcolor = 1;
+                    if (i < 2) digitcolor = 2;
+                    stretch = digitcolor * 33;
                 }
                 else
                 {
-                    int barcolor = 0;
-                    if (off > 32) barcolor = 1;
-                    else if (off > 64) barcolor = 2;
-                    stretch += barcolor * 32;
-                }
 
+                    if (t >= 100000)
+                        stretch += 33;
+                    if (t >= 1000000)
+                        stretch += 33;
+
+                }
                 int offset = lut[buf[i]];
                 assert(offset >= 0);
 
-                stretch = 0;
                 int j;
                 for (j = 0; j < 48; j++)
-                    memcpy(framebuffer + SCREEN_BUFFER_ROW_OFFSET_BYTES * (d->y + j) + BYTES_PER_PIXEL * d->x + DIGIT_IMAGE_WIDTH_BYTES * i,
+                    memcpy(framebuffer + SCREEN_BUFFER_ROW_OFFSET_BYTES * (d->y + j) + BYTES_PER_PIXEL * d->x + DIGIT_IMAGE_WIDTH_BYTES * i + x_offset_bytes,
                     filldigits + stretch * DIGIT_IMAGES_SIZE_BYTES + DIGIT_IMAGES_ROW_OFFSET_BYTES * j + DIGIT_IMAGE_WIDTH_BYTES * offset,
                     DIGIT_IMAGE_WIDTH_BYTES);
             }
@@ -170,15 +173,17 @@ void *start_routine(void *p)
     assert(digits != MAP_FAILED);
     close(fd);
 
-// red    0xf800
 // green  0x07e0
+// light green  0xbff7
+
 // yellow 0xf7c2
-// light red    0xface
-// light green  0x7fef
-// light yellow 0xefef
+// light yellow 0xfff7
+
+// red    0xf800
+// light red    0xface 11111 110111 11011 fefb
 
     const uint16_t color_white = 0xffff;
-    const uint16_t colors[NUMBER_STATUS_COLORS][2] = {{0x07e0, 0xefef}, {0xf800, 0xefef}, {0xf7c2, 0xefef}};
+    uint16_t colors[NUMBER_STATUS_COLORS][2] = {{0x07e0, 0xbff7}, {0xf7c2, 0xfff7}, {0xf800, 0xfefb}};
 
     filldigits = malloc(DIGIT_IMAGES_SIZE_BYTES * NUMBER_STATUS_COLORS * STATUS_PIXELS_FILLED);
     assert(filldigits != NULL);
@@ -192,14 +197,14 @@ void *start_routine(void *p)
                     {
                         uint16_t *src = (uint16_t *) digits;
                         uint16_t *dst = (uint16_t *) filldigits + (color_idx * STATUS_PIXELS_FILLED + offset_idx) * DIGIT_IMAGES_SIZE_PIXELS;
- 
- 
+
+
                         src += row_idx * DIGIT_IMAGES_ROW_OFFSET_PIXELS + digit_idx * DIGIT_IMAGE_WIDTH_PIXELS + pixel_idx;
                         dst += row_idx * DIGIT_IMAGES_ROW_OFFSET_PIXELS + digit_idx * DIGIT_IMAGE_WIDTH_PIXELS + pixel_idx;
 
                         if (*src == color_white)
                         {
-                            if ((DIGIT_IMAGE_WIDTH_PIXELS - pixel_idx) < offset_idx)
+                            if ((DIGIT_IMAGE_WIDTH_PIXELS - pixel_idx) <= offset_idx)
                                 *dst = colors[color_idx][0];    // the darker color
                             else
                                 *dst = colors[color_idx][1];    // the lighter color
