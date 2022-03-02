@@ -12,7 +12,7 @@ grep -q /home/pi/ramdisk /etc/fstab
 if [ $? -ne 0 ]
 then echo "tmpfs /home/pi/ramdisk tmpfs size=8000000 0 0" >> /etc/fstab
 fi
-gcc -O3 -o /home/pi/monping2 /home/pi/homenetworkmon/monping2.c -pthread
+gcc -O3 -o /home/pi/monping2 /home/pi/homenetworkmon/monping2.c -pthread -lm
 chown pi:pi /home/pi/monping2
 crontab -u root /home/pi/homenetworkmon/crontab_root2
 crontab -u pi /home/pi/homenetworkmon/crontab_pi2
