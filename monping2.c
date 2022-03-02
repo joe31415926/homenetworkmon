@@ -67,7 +67,6 @@ char *flash;
 
 void update(ui_data_str *d, long t)
 {
-
     int frame = t / FLASH_TIME_PER_FRAME;
     if ((frame >= 0) && (frame < 2 * NUM_FLASH_FRAMES))        // As t increases, frame should first go 0 -> 11 and then go 11 -> 0.
     {
