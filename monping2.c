@@ -64,9 +64,13 @@ int lut[0x100]; // index is a char
 char *framebuffer;
 char *filldigits;
 char *flash;
+char *background;
 
-void update(ui_data_str *d, long t)
+void update(ui_data_str *d, long t, int refresh)
 {
+    if (refresh)
+        memcpy(framebuffer, background, SCREEN_BUFFER_NUM_BYTES);
+    
     int x_offset_bytes = 0;
 
     if (d->d)
@@ -77,7 +81,7 @@ void update(ui_data_str *d, long t)
         int i;
         for (i = 0; i < 6; i++) // 6 characters in: "0000.0"
         {
-//            if (buf[i] != d->buf[i])
+ //           if (refresh || (buf[i] != d->buf[i]))
             {
                 // every factor of 10X will increase the width by 32 pixels
                 // don't forget: you can't take the log() of zero
@@ -122,14 +126,13 @@ void update(ui_data_str *d, long t)
         x_offset_bytes = 6 * DIGIT_IMAGE_WIDTH_BYTES;
     }
     
-
     int frame = t / FLASH_TIME_PER_FRAME;
     if ((frame >= 0) && (frame < 2 * NUM_FLASH_FRAMES))        // As t increases, frame should first go 0 -> 11 and then go 11 -> 0.
     {
         if (frame >= NUM_FLASH_FRAMES)
             frame = 2 * NUM_FLASH_FRAMES - 1 - frame;
 
-        if (frame != d->frame)
+        if (refresh || (frame != d->frame))
         {
             int j;
             for (j = 0; j < FLASH_IMAGE_HEIGHT_PIXELS; j++)
@@ -165,10 +168,19 @@ void *start_routine(void *p)
     assert(framebuffer != MAP_FAILED);
     close(fd);
 
-    fd = open("/home/pi/homenetworkmon/digits", O_RDONLY);
+    fd = open("background", O_RDONLY);
     assert(fd > 0);
 
     struct stat st;
+    assert((fstat(fd, &st) == 0) && (st.st_size == SCREEN_BUFFER_NUM_BYTES));
+    
+    background = (char *) mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    assert(background != MAP_FAILED);
+    close(fd);
+
+    fd = open("/home/pi/homenetworkmon/digits", O_RDONLY);
+    assert(fd > 0);
+
     assert((fstat(fd, &st) == 0) && (st.st_size == DIGIT_IMAGES_SIZE_BYTES));
 
     char *digits = (char *) mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
@@ -263,6 +275,8 @@ void *start_routine(void *p)
         ui[i].d = config[i].d;
     }
 
+    struct timespec last_refresh;
+
     while (1)
     {
         for (i = 0; i < NUM_PROBE_POINTS; i++)
@@ -270,6 +284,13 @@ void *start_routine(void *p)
             unsigned char ii = idx[i] + 255;
             struct timespec now;
             assert(clock_gettime(CLOCK_MONOTONIC_RAW, &now) == 0);
+            
+            int refresh = 0;
+            if ((last_refresh.tv_sec > now.tv_sec) || (last_refresh.tv_sec < now.tv_sec - 10))
+            {
+                last_refresh = now;
+                refresh = 1;
+            }
 
             long deltal = (now.tv_nsec - t[i][ii].tv_nsec) / 100000L;
             long deltah = now.tv_sec - t[i][ii].tv_sec;
@@ -280,7 +301,7 @@ void *start_routine(void *p)
                 deltal += 10000;
             }
 
-            update(ui + i, deltal);
+            update(ui + i, deltal, refresh);
         }
     }
 }
