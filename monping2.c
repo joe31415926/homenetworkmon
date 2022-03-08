@@ -78,43 +78,42 @@ void update(ui_data_str *d, long t, int refresh)
         char buf[20];
         sprintf(buf, "%4ld.%1ld", t / 1000 / 10, (t / 1000) % 10);
 
+        // every factor of 10X will increase the width by 32 pixels
+        // don't forget: you can't take the log() of zero
+        int off = t > 0 ? DIGIT_IMAGE_WIDTH_PIXELS * log(t) / M_LN10 : 0;
+
         int i;
         for (i = 0; i < 6; i++) // 6 characters in: "0000.0"
         {
- //           if (refresh || (buf[i] != d->buf[i]))
+            // t = 100000 (off = 5 * DIGIT_IMAGE_WIDTH_PIXELS) should line up with the point between the 3rd and 4th characters (i = 2)
+            int digitoff = (6 - i) * DIGIT_IMAGE_WIDTH_PIXELS;
+
+            int stretch = off - digitoff;
+            if (stretch < 0) stretch = 0;
+            if (stretch > 32) stretch = 32;
+
+            if (stretch == 0)
             {
-                // every factor of 10X will increase the width by 32 pixels
-                // don't forget: you can't take the log() of zero
-                int off = t > 0 ? DIGIT_IMAGE_WIDTH_PIXELS * log(t) / M_LN10 : 0;
+                int digitcolor = 0;
+                if (i == 1) digitcolor = 1;
+                if (i < 1) digitcolor = 2;
+                stretch = digitcolor * 33;
+            }
+            else
+            {
+                if (t >= 100000)
+                    stretch += 33;
+                if (t >= 1000000)
+                    stretch += 33;
 
-                // t = 100000 (off = 5 * DIGIT_IMAGE_WIDTH_PIXELS) should line up with the point between the 3rd and 4th characters (i = 2)
-                int digitoff = (6 - i) * DIGIT_IMAGE_WIDTH_PIXELS;
+            }
+            int offset = lut[buf[i]];
+            assert(offset >= 0);
 
-                int stretch = off - digitoff;
-                if (stretch < 0) stretch = 0;
-                if (stretch > 32) stretch = 32;
-
-                if (stretch == 0)
-                {
-                    int digitcolor = 0;
-                    if (i == 1) digitcolor = 1;
-                    if (i < 1) digitcolor = 2;
-                    stretch = digitcolor * 33;
-                }
-                else
-                {
-
-                    if (t >= 100000)
-                        stretch += 33;
-                    if (t >= 1000000)
-                        stretch += 33;
-
-                }
-                int offset = lut[buf[i]];
-                assert(offset >= 0);
-
+       //     if (refresh || (buf[i] != d->buf[i]))
+            {
                 int j;
-                for (j = 0; j < 48; j++)
+                for (j = 0; j < DIGIT_IMAGE_HEIGHT_PIXELS; j++)
                     memcpy(framebuffer + SCREEN_BUFFER_ROW_OFFSET_BYTES * (d->y + j) + BYTES_PER_PIXEL * d->x + DIGIT_IMAGE_WIDTH_BYTES * i + x_offset_bytes,
                     filldigits + stretch * DIGIT_IMAGES_SIZE_BYTES + DIGIT_IMAGES_ROW_OFFSET_BYTES * j + DIGIT_IMAGE_WIDTH_BYTES * offset,
                     DIGIT_IMAGE_WIDTH_BYTES);
@@ -127,18 +126,17 @@ void update(ui_data_str *d, long t, int refresh)
     }
     
     int frame = t / FLASH_TIME_PER_FRAME;
-    if ((frame >= 0) && (frame < 2 * NUM_FLASH_FRAMES))        // As t increases, frame should first go 0 -> 11 and then go 11 -> 0.
-    {
-        if (frame >= NUM_FLASH_FRAMES)
-            frame = 2 * NUM_FLASH_FRAMES - 1 - frame;
+    if ((frame < 0) || (frame >= 2 * NUM_FLASH_FRAMES))
+        frame = 0;
+    if (frame >= NUM_FLASH_FRAMES)      // As t increases, frame should first go 0 -> 11 and then go 11 -> 0.
+        frame = 2 * NUM_FLASH_FRAMES - 1 - frame;
 
-        if (refresh || (frame != d->frame))
-        {
-            int j;
-            for (j = 0; j < FLASH_IMAGE_HEIGHT_PIXELS; j++)
-                memcpy(framebuffer + SCREEN_BUFFER_ROW_OFFSET_BYTES * (d->y + j) + BYTES_PER_PIXEL * d->x + x_offset_bytes, flash + FLASH_IMAGES_ROW_OFFSET_BYTES * j + FLASH_IMAGE_WIDTH_BYTES * frame, FLASH_IMAGE_WIDTH_BYTES);
-            d->frame = frame;
-        }
+    if (refresh || (frame != d->frame))
+    {
+        int j;
+        for (j = 0; j < FLASH_IMAGE_HEIGHT_PIXELS; j++)
+            memcpy(framebuffer + SCREEN_BUFFER_ROW_OFFSET_BYTES * (d->y + j) + BYTES_PER_PIXEL * d->x + x_offset_bytes, flash + FLASH_IMAGES_ROW_OFFSET_BYTES * j + FLASH_IMAGE_WIDTH_BYTES * frame, FLASH_IMAGE_WIDTH_BYTES);
+        d->frame = frame;
     }
 
 }
