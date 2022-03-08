@@ -168,7 +168,7 @@ void *start_routine(void *p)
     assert(framebuffer != MAP_FAILED);
     close(fd);
 
-    fd = open("background", O_RDONLY);
+    fd = open("/home/pi/homenetworkmon/background", O_RDONLY);
     assert(fd > 0);
 
     struct stat st;
