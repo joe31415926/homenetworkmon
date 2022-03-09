@@ -130,6 +130,7 @@ void update(ui_data_str *d, long t, int refresh)
         frame = 0;
     if (frame >= NUM_FLASH_FRAMES)      // As t increases, frame should first go 0 -> 11 and then go 11 -> 0.
         frame = 2 * NUM_FLASH_FRAMES - 1 - frame;
+    assert((frame >= 0) && (frame < NUM_FLASH_FRAMES));
 
     if (refresh || (frame != d->frame))
     {
