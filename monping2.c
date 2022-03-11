@@ -30,7 +30,7 @@
 #define SCREEN_BUFFER_NUM_BYTES (SCREEN_BUFFER_NUM_PIXELS * BYTES_PER_PIXEL)
 #define SCREEN_BUFFER_ROW_OFFSET_BYTES (SCREEN_BUFFER_WIDTH_PIXELS * BYTES_PER_PIXEL)
 
-#define NUM_PROBE_POINTS (10)
+#define NUM_PROBE_POINTS (12)
 
 #define NUM_DIGIT_IMAGES (12)
 #define DIGIT_IMAGE_WIDTH_PIXELS (32)
@@ -254,16 +254,18 @@ void *start_routine(void *p)
         int y;
         int d;
     } config[NUM_PROBE_POINTS] = {
-        {0,   0, 0},
-        {0,  50, 0},
         {0, 100, 0},
         {0, 150, 0},
-        {0, 200, 0},
-        {500,   0, 1},
-        {500,  50, 1},
-        {500, 100, 1},
-        {500, 150, 1},
-        {500, 200, 1},
+        {0, 475, 0},
+        {0, 525, 0},
+        {0, 575, 0},
+        {0, 625, 0},
+        {650, 100, 1},
+        {400, 150, 1},
+        {400, 475, 1},
+        {650, 525, 1},
+        {1100, 100, 1},
+        {1100, 625, 1},
     };
 
     int i;
@@ -358,7 +360,7 @@ void child()
 
             if ((res[9] == 1) && (res[20] == 0) && (res[21] == 0))
             {
-                i = res[36] + 5;
+                i = res[36] + NUM_PROBE_POINTS / 2;
                 if ((i >= 0) && (i < NUM_PROBE_POINTS))
                 {
                     assert(clock_gettime(CLOCK_MONOTONIC_RAW, &t[i][idx[i]]) == 0);
